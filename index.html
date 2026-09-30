@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cook Mode Wake Lock Widget</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            margin: 0;
+            padding: 10px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            background-color: transparent;
+        }
+        .cook-mode-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            background-color: #e67e22; /* Warm recipe-themed orange */
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            font-size: 16px;
+            font-weight: 600;
+            border-radius: 25px;
+            cursor: pointer;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            transition: background-color 0.2s, transform 0.1s;
+        }
+        .cook-mode-btn:hover {
+            background-color: #d35400;
+        }
+        .cook-mode-btn:active {
+            transform: scale(0.98);
+        }
+        .cook-mode-btn.active {
+            background-color: #27ae60; /* Success green */
+        }
+        .status-text {
+            margin-top: 8px;
+            font-size: 12px;
+            color: #666;
+            text-align: center;
+        }
+    </style>
+</head>
+<body>
+
+    <div style="display: flex; flex-direction: column; align-items: center;">
+        <button id="wakeLockBtn" class="cook-mode-btn">
+            <span id="btnIcon">🍳</span> <span id="btnText">Turn on Cook Mode (Keep Screen On)</span>
+        </button>
+        <p id="status" class="status-text"></p>
+    </div>
+
+    <script>
+        let wakeLock = null;
+        const wakeLockBtn = document.getElementById('wakeLockBtn');
+        const btnText = document.getElementById('btnText');
+        const btnIcon = document.getElementById('btnIcon');
+        const statusText = document.getElementById('status');
+
+        // Check if browser supports the Wake Lock API
+        const isSupported = 'wakeLock' in navigator;
+
+        if (!isSupported) {
+            wakeLockBtn.disabled = true;
+            wakeLockBtn.style.backgroundColor = '#bdc3c7';
+            wakeLockBtn.style.cursor = 'not-allowed';
+            btnText.textContent = 'Cook Mode Unsupported';
+            statusText.textContent = 'Your current browser doesn\'t support keeping the screen awake.';
+        }
+
+        async function requestWakeLock() {
+            try {
+                wakeLock = await navigator.wakeLock.request('screen');
+                
+                // Update UI state to active
+                wakeLockBtn.classList.add('active');
+                btnText.textContent = 'Cook Mode Active';
+                btnIcon.textContent = '🌟';
+                statusText.textContent = 'Screen will stay bright while cooking!';
+
+                // Handle system-forced release (e.g. user minimises window or battery dies)
+                wakeLock.addEventListener('release', () => {
+                    resetUI();
+                });
+
+            } catch (err) {
+                statusText.textContent = `Error: ${err.message}`;
+                resetUI();
+            }
+        }
+
+        function releaseWakeLock() {
+            if (wakeLock !== null) {
+                wakeLock.release();
+                wakeLock = null;
+            }
+            resetUI();
+        }
+
+        function resetUI() {
+            wakeLockBtn.classList.remove('active');
+            btnText.textContent = 'Turn on Cook Mode (Keep Screen On)';
+            btnIcon.textContent = '🍳';
+            statusText.textContent = '';
+        }
+
+        // Toggle functionality
+        wakeLockBtn.addEventListener('click', async () => {
+            if (wakeLock === null) {
+                await requestWakeLock();
+            } else {
+                releaseWakeLock();
+            }
+        });
+
+        // Re-request wake lock if tab becomes visible again
+        document.addEventListener('visibilitychange', async () => {
+            if (wakeLock !== null && document.visibilityState === 'visible') {
+                await requestWakeLock();
+            }
+        });
+    </script>
+</body>
+</html>
